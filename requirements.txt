@@ -1,13 +1,5 @@
-# Streamlit Web Framework
 streamlit==1.39.0
-
-# Xử lý dữ liệu
 pandas==2.2.3
 openpyxl==3.1.5
-
-# Gọi API Gemini
 google-genai==0.3.0
-
-# (Tùy chọn) Hiển thị biểu đồ phân tích phụ
-matplotlib==3.9.2
-plotly==5.24.0
+openai==1.42.0
