@@ -4,21 +4,9 @@ import concurrent.futures
 from io import BytesIO
 from google import genai
 
-# --- OPENAI Import và version check ---
-try:
-    import openai
-    from openai import OpenAI
-except ImportError:
-    import openai
-    OpenAI = None
-
-# --- Version detection an toàn ---
-try:
-    import importlib.metadata as importlib_metadata
-    openai_version = importlib_metadata.version("openai")
-except Exception:
-    import pkg_resources
-    openai_version = pkg_resources.get_distribution("openai").version
+# --- OPENAI Import ---
+from openai import OpenAI
+import openai
 
 # ================== PAGE CONFIG ==================
 st.set_page_config(page_title="🤖 AgriAI CRM Pro", layout="wide", page_icon="🤖")
@@ -35,7 +23,7 @@ with st.expander("⚙️ Cấu hình AI"):
     c1, c2 = st.columns(2)
     with c1:
         openai_key = st.text_input("🔹 OpenAI API Key", type="password")
-        openai_model = st.selectbox("🔹 Model OpenAI", ["gpt-5", "gpt-4o-mini", "gpt-4-turbo"])
+        openai_model = st.selectbox("🔹 Model OpenAI", ["gpt-4o-mini", "gpt-4-turbo", "gpt-5"])
     with c2:
         gemini_key = st.text_input("🔸 Gemini API Key", type="password")
         gemini_model = st.selectbox("🔸 Model Gemini", ["gemini-2.0-flash", "gemini-1.5-flash"])
@@ -47,6 +35,7 @@ uploaded = st.file_uploader("📥 Tải file Excel khách hàng (sheet: KhachHan
 
 # ================== AI FUNCTIONS ==================
 def call_gemini(prompt, key, model_name):
+    """Gọi Gemini API"""
     try:
         client = genai.Client(api_key=key)
         response = client.models.generate_content(model=model_name, contents=prompt)
@@ -55,18 +44,22 @@ def call_gemini(prompt, key, model_name):
         return f"⚠️ Gemini lỗi: {e}"
 
 def call_openai(prompt, key, model_name, creativity):
+    """Gọi OpenAI API (đã fix proxies hoàn toàn)"""
     try:
-        major = int(openai_version.split(".")[0])
-
-        if major >= 1:
-            client = OpenAI(api_key=key)
-            resp = client.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=creativity
-            )
-            return resp.choices[0].message.content.strip()
-        else:
+        client = OpenAI(api_key=key)
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "Bạn là chuyên gia phân tích khách hàng Agribank có 15 năm kinh nghiệm."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=creativity,
+            max_tokens=1200,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        # fallback nếu version openai cũ
+        try:
             openai.api_key = key
             resp = openai.ChatCompletion.create(
                 model=model_name,
@@ -74,8 +67,8 @@ def call_openai(prompt, key, model_name, creativity):
                 temperature=creativity
             )
             return resp.choices[0].message["content"].strip()
-    except Exception as e:
-        return f"⚠️ OpenAI lỗi: {e}"
+        except Exception as inner_e:
+            return f"⚠️ OpenAI lỗi: {inner_e}"
 
 def export_excel(customer_name, analysis_text):
     df = pd.DataFrame({"Khách hàng": [customer_name], "Phân tích & Tư vấn": [analysis_text]})
@@ -176,7 +169,7 @@ else:
 # ========== FOOTER ==========
 st.markdown("""
 <div class='footer'>
-    © 2025 <span>Agribank AI Division</span> | <b>AgriAI CRM Pro v2.7.3</b><br>
+    © 2025 <span>Agribank AI Division</span> | <b>AgriAI CRM Pro v2.7.4</b><br>
     <i>Ứng dụng hỗ trợ cán bộ Agribank trong công tác phân tích & tư vấn khách hàng.</i>
 </div>
 """, unsafe_allow_html=True)
