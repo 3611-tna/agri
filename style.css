@@ -1,19 +1,17 @@
-/* ============ TOÀN TRANG ============ */
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
     background-color: #fafafa;
     color: #222;
 }
 
-/* Tiêu đề & phụ đề */
 .title {
     text-align: center;
     color: #AE1C3F;
     font-weight: 800;
     font-size: 2rem;
     margin-top: 10px;
-    letter-spacing: 0.5px;
 }
+
 .subtitle {
     text-align: center;
     color: #666;
@@ -21,22 +19,21 @@ body {
     margin-bottom: 15px;
 }
 
-/* ============ KHỐI PHÂN TÍCH ============ */
 .analysis-card {
-    background-color: #ffffff;
+    background-color: #fff;
     border-left: 6px solid #AE1C3F;
     border-radius: 10px;
-    padding: 1.2rem 1.4rem;
+    padding: 1.2rem;
     margin-top: 1rem;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease-in-out;
-}
-.analysis-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
 }
 
-/* ============ CHAT BỔ SUNG ============ */
+.analysis-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
+}
+
 .chat-msg {
     background-color: #fff;
     border-radius: 8px;
@@ -45,61 +42,31 @@ body {
     box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
     transition: background 0.2s ease;
 }
+
 .chat-msg:hover {
     background-color: #f8f1f3;
 }
-.chat-msg b {
-    color: #AE1C3F;
-}
 
-/* ============ KHUNG BẢNG ============ */
 [data-testid="stDataFrame"] {
     border-radius: 10px !important;
     background-color: #fff !important;
-    padding: 10px !important;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.04);
-}
-[data-testid="stDataFrame"] th {
-    background-color: #AE1C3F !important;
-    color: #fff !important;
-    font-weight: 600 !important;
-    text-align: center !important;
-}
-[data-testid="stDataFrame"] td {
-    font-size: 0.9rem !important;
-    padding: 8px !important;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
 }
 
-/* ============ NÚT & INPUT ============ */
 button[kind="primary"], .stDownloadButton button {
     background: linear-gradient(90deg, #AE1C3F, #c62856);
     color: #fff !important;
     border-radius: 8px;
     border: none;
     font-weight: 600;
-    transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease;
 }
+
 button[kind="primary"]:hover, .stDownloadButton button:hover {
     transform: scale(1.03);
     background: linear-gradient(90deg, #c13e5d, #a3153c);
 }
 
-input, textarea, select, .stTextInput>div>div>input {
-    border-radius: 6px !important;
-    border: 1px solid #ddd !important;
-}
-
-/* ============ SLIDER, RADIO, CHECKBOX ============ */
-.stSlider > div[data-testid="stThumbValue"] {
-    background-color: #AE1C3F !important;
-    color: white !important;
-}
-.stRadio > label, .stSelectbox > label {
-    color: #AE1C3F !important;
-    font-weight: 600;
-}
-
-/* ============ FOOTER ============ */
 .footer {
     text-align: center;
     font-size: 0.85rem;
@@ -108,16 +75,8 @@ input, textarea, select, .stTextInput>div>div>input {
     margin-top: 30px;
     border-top: 1px solid #e0e0e0;
 }
+
 .footer span {
     color: #AE1C3F;
     font-weight: bold;
-}
-
-/* ============ HIỆU ỨNG NHỎ ============ */
-hr {
-    border: 1px solid #AE1C3F;
-    margin: 10px 0 15px 0;
-}
-h3, h4 {
-    color: #AE1C3F;
 }
