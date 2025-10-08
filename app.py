@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
+import time
+import concurrent.futures
 from io import BytesIO
 from google import genai
 from google.genai.errors import APIError
 
-# ✅ Import OpenAI safely (tương thích mọi môi trường)
+# --- OPENAI fallback for all SDK versions ---
 try:
     from openai import OpenAI
 except ImportError:
@@ -12,41 +14,86 @@ except ImportError:
     OpenAI = None
 
 # ==============================
-# ⚙️ Cấu hình trang
+# ⚙️ PAGE CONFIG
 # ==============================
-st.set_page_config(page_title="🤖 AgriAI CRM – Phân tích & tư vấn khách hàng", layout="wide")
+st.set_page_config(
+    page_title="🤖 AgriAI CRM PRO",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Load CSS
-with open("style.css") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
+# ==============================
+# 🎨 CUSTOM STYLE
+# ==============================
 st.markdown("""
-<h1 style='text-align:center; color:#AE1C3F;'>💡 AGRIAI CRM</h1>
-<p style='text-align:center; color:gray;'>Hệ thống hỗ trợ chăm sóc và phân tích hành vi khách hàng Agribank bằng AI lai (Gemini + OpenAI)</p>
+<style>
+body {
+    background: linear-gradient(180deg,#fff,#f9f9f9);
+    font-family: "Segoe UI",sans-serif;
+}
+h1,h2,h3 { color: #AE1C3F; }
+.block-container { padding-top: 1rem; }
+footer {visibility: hidden;}
+div[data-testid="stMetricValue"] {
+    color:#AE1C3F;
+}
+.analysis-card {
+    background-color: #fff6f8;
+    border-left: 5px solid #AE1C3F;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+.gradient-btn {
+    background: linear-gradient(90deg,#AE1C3F,#d7355f);
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: 0.3s;
+}
+.gradient-btn:hover {
+    background: linear-gradient(90deg,#d7355f,#AE1C3F);
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ==============================
+# 🧠 HEADER
+# ==============================
+st.markdown("""
+<h1 style='text-align:center; color:#AE1C3F;'>🤖 AGRIAI CRM PRO</h1>
+<p style='text-align:center; color:gray;'>Phân tích & tư vấn khách hàng Agribank bằng AI lai (Gemini + ChatGPT-5)</p>
 <hr style='border:1px solid #AE1C3F'>
 """, unsafe_allow_html=True)
 
 # ==============================
-# 🔑 Cấu hình API & lựa chọn AI
+# 🔧 API CONFIGURATION
 # ==============================
-with st.expander("⚙️ Cấu hình hệ thống AI"):
+with st.expander("⚙️ Cấu hình API Key & Chế độ AI"):
     c1, c2 = st.columns(2)
     with c1:
         openai_key = st.text_input("🔹 OpenAI API Key:", type="password", placeholder="sk-...")
-        openai_model = st.selectbox("🔹 Model OpenAI:", ["gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"])
+        openai_model = st.selectbox("🔹 Model OpenAI:", [
+            "gpt-5", "gpt-4.1-mini", "gpt-4o-mini", "gpt-4-turbo"
+        ])
     with c2:
         gemini_key = st.text_input("🔸 Gemini API Key:", type="password", placeholder="AIzaSy...")
-        gemini_model = st.selectbox("🔸 Model Gemini:", ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"])
-    creativity = st.slider("🎨 Mức độ sáng tạo (0 – 2)", 0.0, 2.0, 1.0, 0.1)
-    ai_mode = st.radio("🤝 Chọn chế độ phân tích:", ["Gemini", "OpenAI", "Hybrid (So sánh & hợp nhất)"], horizontal=True)
+        gemini_model = st.selectbox("🔸 Model Gemini:", [
+            "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"
+        ])
+    creativity = st.slider("🎨 Mức độ sáng tạo (0–2)", 0.0, 2.0, 1.0, 0.1)
+    ai_mode = st.radio("🤝 Chọn chế độ AI:", ["Gemini", "OpenAI", "Hybrid (lai so sánh)"], horizontal=True)
 
 # ==============================
-# 📂 Upload file Excel khách hàng
+# 📂 UPLOAD EXCEL
 # ==============================
 uploaded_file = st.file_uploader("📥 Tải file Excel dữ liệu khách hàng (sheet: KhachHang)", type=["xlsx", "xls"])
 
 # ==============================
-# ⚙️ Hàm gọi AI
+# ⚙️ CALL AI FUNCTIONS
 # ==============================
 def call_gemini(prompt, key, model_name):
     try:
@@ -67,6 +114,7 @@ def call_openai(prompt, key, model_name, creativity):
             )
             return resp.choices[0].message.content.strip()
         else:
+            import openai
             openai.api_key = key
             resp = openai.ChatCompletion.create(
                 model=model_name,
@@ -78,94 +126,109 @@ def call_openai(prompt, key, model_name, creativity):
         return f"⚠️ OpenAI lỗi: {e}"
 
 # ==============================
-# 🧠 Hàm phân tích khách hàng
+# 🧩 ANALYSIS CORE
 # ==============================
 def analyze_customer(row, mode, creativity, gemini_key, gemini_model, openai_key, openai_model):
-    base_prompt = f"""
-    Bạn là chuyên gia phân tích khách hàng của Agribank. 
-    Hãy đánh giá và tư vấn chiến lược tiếp cận dựa trên thông tin sau:
+    prompt = f"""
+    Bạn là chuyên gia phân tích hành vi khách hàng của Agribank.
+    Dựa trên dữ liệu sau, hãy phân tích & đề xuất hướng chăm sóc:
 
     {row.to_dict()}
 
-    Yêu cầu trả lời gồm 4 phần:
-    1️⃣ Phân tích hành vi, tâm lý, sở thích, độ tuổi, khu vực, tôn giáo, chính trị.
-    2️⃣ Dự đoán nhu cầu tài chính & hành vi tiêu dùng.
-    3️⃣ Gợi ý sản phẩm, dịch vụ Agribank phù hợp (tín dụng, tiết kiệm, số hoá...).
-    4️⃣ Chiến lược chăm sóc, tương tác & tiếp cận cá nhân hoá.
+    Phân tích gồm:
+    1️⃣ Tâm lý & hành vi khách hàng (tôn giáo, sở thích, khu vực, hôn nhân...).
+    2️⃣ Dự đoán nhu cầu tài chính và xu hướng sản phẩm.
+    3️⃣ Đề xuất sản phẩm/dịch vụ phù hợp (gửi tiết kiệm, vay, thẻ, bảo hiểm, QR, Mobile Banking...).
+    4️⃣ Đề xuất chiến lược tiếp cận & chăm sóc phù hợp.
 
-    Mức độ sáng tạo: {creativity}
+    Mức sáng tạo: {creativity}
     """
 
     gemini_text, openai_text = None, None
 
-    if mode in ["Gemini", "Hybrid"] and gemini_key:
-        gemini_text = call_gemini(base_prompt, gemini_key, gemini_model)
-    if mode in ["OpenAI", "Hybrid"] and openai_key:
-        openai_text = call_openai(base_prompt, openai_key, openai_model, creativity)
-
     if mode == "Hybrid":
-        merge_prompt = f"""
-        Dưới đây là hai bản phân tích cùng về khách hàng này:
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            futures = []
+            if gemini_key: futures.append(pool.submit(call_gemini, prompt, gemini_key, gemini_model))
+            if openai_key: futures.append(pool.submit(call_openai, prompt, openai_key, openai_model, creativity))
 
-        🔸 Gemini:
-        {gemini_text}
+            for f in concurrent.futures.as_completed(futures, timeout=60):
+                try:
+                    r = f.result(timeout=60)
+                    if "Gemini lỗi" not in r and "OpenAI lỗi" not in r:
+                        if not gemini_text: gemini_text = r
+                        else: openai_text = r
+                except Exception as e:
+                    st.warning(f"⚠️ Một AI bị lỗi hoặc quá hạn: {e}")
 
-        🔹 OpenAI:
-        {openai_text}
+        if not gemini_text and not openai_text:
+            return "⚠️ Không có phản hồi từ cả hai AI."
 
-        Hãy tổng hợp lại thành bản kết luận duy nhất, giữ ý chính hợp lý từ cả hai.
-        """
-        return call_openai(merge_prompt, openai_key, openai_model, 0.7)
-    else:
-        return gemini_text or openai_text
+        if gemini_text and openai_text:
+            merge_prompt = f"""
+            🔸 Gemini:
+            {gemini_text}
+
+            🔹 OpenAI:
+            {openai_text}
+
+            Hãy hợp nhất hai bản thành đánh giá cuối cùng, chọn nội dung hợp lý & thực tế nhất.
+            """
+            return call_openai(merge_prompt, openai_key, openai_model, 0.7)
+        else:
+            return gemini_text or openai_text
+
+    elif mode == "Gemini":
+        return call_gemini(prompt, gemini_key, gemini_model)
+    elif mode == "OpenAI":
+        return call_openai(prompt, openai_key, openai_model, creativity)
 
 # ==============================
-# 📊 Hiển thị và xử lý dữ liệu
+# 🧠 MAIN APP LOGIC
 # ==============================
-if uploaded_file is not None:
+if uploaded_file:
     try:
         df = pd.read_excel(uploaded_file, sheet_name="KhachHang")
         st.success(f"✅ Đã tải {len(df)} khách hàng từ file Excel.")
         st.dataframe(df, use_container_width=True)
 
-        selected = st.multiselect(
-            "👥 Chọn khách hàng để phân tích",
-            options=df["Họ tên"].tolist(),
-            default=[df["Họ tên"].iloc[0]] if not df.empty else []
-        )
+        selected = st.multiselect("👥 Chọn khách hàng cần phân tích", df["Họ tên"].tolist(),
+                                  default=[df["Họ tên"].iloc[0]])
 
-        if st.button("🚀 Phân tích & tư vấn khách hàng"):
-            if mode := ai_mode:
-                if (mode == "Gemini" and not gemini_key) or \
-                   (mode == "OpenAI" and not openai_key) or \
-                   (mode == "Hybrid" and (not gemini_key or not openai_key)):
-                    st.error("⚠️ Vui lòng nhập đủ API key cho chế độ đã chọn.")
-                else:
-                    st.info("🔍 Đang phân tích, vui lòng chờ...")
+        if st.button("🚀 Bắt đầu phân tích", type="primary", use_container_width=True):
+            if (ai_mode == "Gemini" and not gemini_key) or \
+               (ai_mode == "OpenAI" and not openai_key) or \
+               (ai_mode == "Hybrid" and (not gemini_key or not openai_key)):
+                st.error("⚠️ Vui lòng nhập API Key cho chế độ đã chọn.")
+            else:
+                with st.spinner("🧩 Đang phân tích dữ liệu khách hàng..."):
                     results = []
                     for _, row in df[df["Họ tên"].isin(selected)].iterrows():
+                        st.markdown(f"<h3>👤 {row['Họ tên']}</h3>", unsafe_allow_html=True)
                         analysis = analyze_customer(row, ai_mode, creativity, gemini_key, gemini_model, openai_key, openai_model)
-                        results.append({"Họ tên": row["Họ tên"], "Phân tích & tư vấn": analysis})
-                        st.markdown(f"### 👤 {row['Họ tên']}")
-                        st.info(analysis)
+                        results.append({"Họ tên": row["Họ tên"], "Kết quả phân tích & tư vấn": analysis})
+                        st.markdown(f"<div class='analysis-card'>{analysis}</div>", unsafe_allow_html=True)
+                        time.sleep(0.3)
 
                     result_df = pd.DataFrame(results)
                     out = BytesIO()
                     result_df.to_excel(out, index=False, engine="openpyxl")
                     st.download_button("⬇️ Tải kết quả (Excel)", out.getvalue(),
-                        file_name="agriAI_ketqua.xlsx",
+                        file_name="AgriAI_phan_tich.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
     except Exception as e:
-        st.error(f"⚠️ Lỗi khi đọc file: {e}")
+        st.error(f"⚠️ Lỗi đọc file: {e}")
 else:
     st.info("⬆️ Hãy tải file Excel (sheet: KhachHang) để bắt đầu phân tích.")
 
 # ==============================
-# 🔚 Footer
+# 🔚 FOOTER
 # ==============================
 st.markdown("""
-<footer style='text-align:center; margin-top:40px; padding:10px; background:#AE1C3F; color:white; border-radius:12px;'>
-© 2025 Agribank Training & Development — <b>AgriAI CRM</b><br>
-Phát triển bởi Bộ phận CNTT Agribank • Kết hợp AI kép (Gemini + OpenAI)
-</footer>
+<hr>
+<div style='text-align:center;color:white;background:#AE1C3F;padding:10px;border-radius:12px;'>
+© 2025 Agribank Training & Development — <b>AgriAI CRM PRO</b><br>
+Phát triển bởi Bộ phận CNTT Agribank • Tích hợp AI lai (Gemini + GPT-5)
+</div>
 """, unsafe_allow_html=True)
