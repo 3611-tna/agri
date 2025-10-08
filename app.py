@@ -1,8 +1,8 @@
 # ======================================================
-# 🌾 AgriAI CRM PRO 4.1 – Phân tích & Tư vấn chuyên sâu khách hàng Agribank
+# 🌾 AgriAI CRM PRO 4.2 – Phân tích, dự báo & tư vấn hành động thông minh
 # ------------------------------------------------------
 # Tác giả: Shine | Agribank Tây Nghệ An | 2025
-# Phiên bản: v4.1 (Gemini-only)
+# Mục tiêu: Phân tích khách hàng - chấm điểm - dự báo - gợi ý hành động cụ thể
 # ======================================================
 
 import streamlit as st
@@ -10,13 +10,12 @@ import pandas as pd
 import numpy as np
 from io import BytesIO
 from google import genai
-import seaborn as sns
-import matplotlib.pyplot as plt
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import MinMaxScaler
 
-# ---------- PAGE CONFIG ----------
-st.set_page_config(page_title="AgriAI CRM Pro 4.1", layout="wide", page_icon="🌾")
+# ---------- CẤU HÌNH GIAO DIỆN ----------
+st.set_page_config(page_title="AgriAI CRM Pro 4.2", layout="wide", page_icon="🌾")
 
-# ---------- STYLE ----------
 st.markdown("""
 <style>
 h1,h2,h3,h4 {color:#AE1C3F;}
@@ -27,57 +26,64 @@ h1,h2,h3,h4 {color:#AE1C3F;}
 }
 .stButton>button:hover {opacity:0.9;transform:scale(1.03);}
 .analysis-box {
-    background:white;padding:16px;border-radius:10px;
+    background:white;padding:18px;border-radius:10px;
     border-left:6px solid #AE1C3F;
     box-shadow:0 2px 10px rgba(0,0,0,0.1);
-    margin-bottom:20px;
+    margin-bottom:25px;
 }
 .footer {text-align:center;color:#777;margin-top:40px;}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🌾 AgriAI CRM PRO 4.1 – Phân tích chuyên sâu & Đề xuất hành động")
-st.caption("Phiên bản nghiệp vụ thực tiễn – Phân tích định lượng + định tính, xây dựng chiến lược chăm sóc khách hàng Agribank")
+st.title("🌾 AgriAI CRM PRO 4.2 – Dự báo & đề xuất hành động thông minh")
+st.caption("Phân tích định lượng + định tính, dự báo khả năng rời bỏ và đề xuất hành động cụ thể cho CBTD Agribank.")
 
-# ---------- CONFIG ----------
-with st.expander("⚙️ Cấu hình Gemini AI"):
+# ---------- CẤU HÌNH AI ----------
+with st.expander("⚙️ Cấu hình Gemini"):
     gemini_key = st.text_input("🔸 Gemini API Key", type="password")
     gemini_model = st.selectbox("🔹 Model Gemini", ["gemini-2.0-flash", "gemini-1.5-flash"])
     creativity = st.slider("🎨 Mức sáng tạo (0 - 2)", 0.0, 2.0, 0.8, 0.1)
 
+# ---------- UPLOAD FILE ----------
 uploaded = st.file_uploader("📥 Tải file Excel (sheet KhachHang)", type=["xlsx"])
 
 # ---------- HÀM PHỤ TRỢ ----------
 def call_gemini(prompt, key, model, creativity):
+    """Gọi Gemini AI để sinh nhận định chuyên sâu."""
     try:
         client = genai.Client(api_key=key)
-        resp = client.models.generate_content(model=model, contents=prompt, generation_config={"temperature":creativity})
+        resp = client.models.generate_content(model=model, contents=prompt, config={"temperature":creativity})
         return resp.text.strip()
     except Exception as e:
         return f"⚠️ Lỗi Gemini: {e}"
 
 def calc_scores(row):
+    """Tính điểm rủi ro, tiềm năng, gắn bó"""
     try:
         thu_nhap = float(str(row.get("Thu nhập", 0)).replace(",", "").replace(".", ""))
         gui = float(str(row.get("Số dư tiền gửi", 0)).replace(",", "").replace(".", ""))
         vay = float(str(row.get("Số dư tiền vay", 0)).replace(",", "").replace(".", ""))
-
         rui_ro = min(100, max(0, (vay / (thu_nhap + 1)) * 60))
         tiem_nang = min(100, (thu_nhap + gui) / 1_000_000 * 10)
         gan_bo = 40 + len(str(row.get("Dịch vụ đang dùng", "")).split(",")) * 10
         if "Thành phố" in str(row.get("Khu vực", "")): gan_bo += 10
-
         return round(rui_ro,1), round(tiem_nang,1), round(gan_bo,1)
     except:
         return 0,0,0
 
-def suggest_action(r, t, g):
+def suggest_action(r, t, g, churn_prob, loan_prob):
+    """Đề xuất hành động cụ thể dựa trên phân tích + dự báo."""
     acts = []
-    if t > 80: acts.append("👉 Đề xuất gói tiết kiệm dài hạn hoặc đầu tư linh hoạt.")
-    if r > 50: acts.append("⚠️ Theo dõi dư nợ, xem xét tái cơ cấu / gia hạn.")
-    if g < 50: acts.append("💬 Tăng tương tác, tổ chức CSKH định kỳ.")
-    if t < 40 and g < 50: acts.append("📞 Tiếp cận lại, gợi mở ưu đãi nhỏ để khôi phục quan hệ.")
-    if not acts: acts.append("✅ Khách hàng ổn định – duy trì chăm sóc định kỳ.")
+    if churn_prob > 0.7:
+        acts.append("⚠️ Cảnh báo: Khách hàng có nguy cơ rời bỏ cao. Cần gọi điện / CSKH trực tiếp.")
+    if loan_prob > 0.7:
+        acts.append("💰 Có tiềm năng vay thêm – tư vấn gói vay tiêu dùng linh hoạt hoặc vay sản xuất.")
+    if t > 80:
+        acts.append("📈 Đề xuất gói tiết kiệm dài hạn hoặc đầu tư linh hoạt.")
+    if g < 50:
+        acts.append("💬 Tăng tương tác qua chương trình tri ân / CSKH định kỳ.")
+    if not acts:
+        acts.append("✅ Khách hàng ổn định, duy trì chăm sóc định kỳ.")
     return acts
 
 def export_excel(name, summary, df_scores):
@@ -87,71 +93,77 @@ def export_excel(name, summary, df_scores):
         df_scores.to_excel(writer, sheet_name="Scores", index=False)
     return out.getvalue()
 
-# ---------- MAIN ----------
+# ---------- HÀM DỰ BÁO ----------
+def train_predictive_model(df):
+    """Huấn luyện nhanh logistic regression để dự báo churn & loan demand"""
+    scaler = MinMaxScaler()
+    X = df[["Điểm Rủi ro","Điểm Tiềm năng","Điểm Gắn bó"]]
+    X_scaled = scaler.fit_transform(X)
+
+    churn_labels = np.where(df["Điểm Gắn bó"] < 50, 1, 0)
+    loan_labels = np.where(df["Điểm Tiềm năng"] > 70, 1, 0)
+
+    churn_model = LogisticRegression().fit(X_scaled, churn_labels)
+    loan_model = LogisticRegression().fit(X_scaled, loan_labels)
+
+    return churn_model, loan_model, scaler
+
+# ---------- CHƯƠNG TRÌNH CHÍNH ----------
 if uploaded:
     df = pd.read_excel(uploaded, sheet_name="KhachHang")
     st.success(f"✅ Đã tải {len(df)} khách hàng.")
 
+    # --- Tính điểm định lượng ---
     scores = [calc_scores(row) for _, row in df.iterrows()]
     df["Điểm Rủi ro"], df["Điểm Tiềm năng"], df["Điểm Gắn bó"] = zip(*scores)
+
     st.dataframe(df, use_container_width=True)
 
-    # ========== CHỌN KHÁCH HÀNG ==========
+    # --- Huấn luyện mô hình dự báo ---
+    churn_model, loan_model, scaler = train_predictive_model(df)
+
+    # --- Phân tích khách hàng ---
     selected = st.selectbox("👤 Chọn khách hàng cần phân tích", df["Họ tên"].tolist())
     cust = df[df["Họ tên"] == selected].iloc[0].to_dict()
 
-    # ========== CHẾ ĐỘ SO SÁNH ==========
-    compare_mode = st.checkbox("🔁 So sánh với khách hàng khác")
-    if compare_mode:
-        compare_with = st.selectbox("Chọn khách hàng so sánh", [x for x in df["Họ tên"].tolist() if x != selected])
-        cust2 = df[df["Họ tên"] == compare_with].iloc[0].to_dict()
-        r1,t1,g1 = calc_scores(cust)
-        r2,t2,g2 = calc_scores(cust2)
-        comp_df = pd.DataFrame({
-            "Chỉ tiêu":["Rủi ro","Tiềm năng","Gắn bó"],
-            selected:[r1,t1,g1],
-            compare_with:[r2,t2,g2]
-        })
-        st.subheader("📊 So sánh giữa hai khách hàng")
-        st.dataframe(comp_df, use_container_width=False)
-        fig, ax = plt.subplots()
-        sns.barplot(data=comp_df.melt(id_vars="Chỉ tiêu"), x="Chỉ tiêu", y="value", hue="variable", ax=ax)
-        ax.set_title("So sánh điểm giữa hai khách hàng")
-        st.pyplot(fig)
-
-    # ========== PHÂN TÍCH CHUYÊN SÂU ==========
-    if st.button("🚀 Phân tích chuyên sâu & đề xuất hành động"):
+    if st.button("🚀 Phân tích chuyên sâu & Dự báo hành động"):
         r,t,g = calc_scores(cust)
-        actions = suggest_action(r,t,g)
+        features = np.array([[r,t,g]])
+        X_scaled = scaler.transform(features)
 
-        # --- PROMPT CHUYÊN NGHIỆP NGHIỆP VỤ AGRIBANK ---
+        churn_prob = churn_model.predict_proba(X_scaled)[0][1]
+        loan_prob = loan_model.predict_proba(X_scaled)[0][1]
+        actions = suggest_action(r,t,g,churn_prob,loan_prob)
+
+        # --- Prompt chuyên sâu nghiệp vụ ---
         prompt = f"""
-Bạn là chuyên gia phân tích khách hàng Agribank có hơn 15 năm kinh nghiệm.
-Dưới đây là dữ liệu khách hàng thực tế:
+Bạn là chuyên gia tư vấn khách hàng Agribank có 15 năm kinh nghiệm.
+Dưới đây là hồ sơ khách hàng:
 {cust}
 
-Các chỉ số hệ thống:
+Chỉ số hệ thống:
 - Điểm rủi ro: {r}
 - Điểm tiềm năng: {t}
 - Điểm gắn bó: {g}
+- Xác suất rời bỏ: {round(churn_prob*100,2)}%
+- Xác suất vay thêm: {round(loan_prob*100,2)}%
 
-Hãy viết bản PHÂN TÍCH CHUYÊN SÂU theo 4 phần:
-1️⃣ **Tổng quan năng lực tài chính:** đánh giá thực tế, phân tích cơ cấu thu nhập, tiền gửi, dư nợ.
-2️⃣ **Hành vi & tâm lý khách hàng:** mô tả phong cách, mức độ trung thành, yếu tố vùng miền, nghề nghiệp.
-3️⃣ **Định hướng sản phẩm phù hợp:** chọn tối đa 3 sản phẩm Agribank (VD: Tiết kiệm bậc thang, vay tiêu dùng, bảo hiểm ABIC, QR POS...).
-4️⃣ **Chiến lược chăm sóc & hành động đề xuất:** nêu cụ thể hành động mà CBTD nên làm trong 1–3 tháng tới.
+Viết bản PHÂN TÍCH NGHIỆP VỤ theo 4 phần:
+1️⃣ Tổng quan tài chính và hành vi khách hàng
+2️⃣ Phân tích rủi ro và xu hướng hành động
+3️⃣ Dự báo tiềm năng sản phẩm phù hợp (ưu tiên các sản phẩm Agribank thực tế)
+4️⃣ Kế hoạch hành động chi tiết cho CBTD trong 1–3 tháng
 
-Lưu ý:
-- Không nói chung chung.
-- Phải bám sát dữ liệu và chỉ số thực tế.
-- Viết ngắn gọn, dễ đọc, như tư vấn nghiệp vụ thật.
+Viết ngắn gọn, súc tích, thực tế và có tính áp dụng cao.
 """
         ai_text = call_gemini(prompt, gemini_key, gemini_model, creativity)
 
+        # --- Kết quả hiển thị ---
         summary = f"""
 ### 📌 Phân tích chuyên sâu khách hàng **{selected}**
 #### 🔢 Điểm hệ thống
 - Rủi ro: {r} | Tiềm năng: {t} | Gắn bó: {g}
+- Xác suất rời bỏ: {round(churn_prob*100,2)}% | Xác suất vay thêm: {round(loan_prob*100,2)}%
 
 #### 💡 Nhận định chuyên gia (AI)
 {ai_text}
@@ -161,28 +173,14 @@ Lưu ý:
 """
         st.markdown(f"<div class='analysis-box'>{summary}</div>", unsafe_allow_html=True)
 
-        # Xuất Excel
-        df_scores = pd.DataFrame({"Chỉ tiêu":["Rủi ro","Tiềm năng","Gắn bó"],"Điểm":[r,t,g]})
+        df_scores = pd.DataFrame({
+            "Chỉ tiêu":["Rủi ro","Tiềm năng","Gắn bó","Xác suất rời bỏ","Xác suất vay thêm"],
+            "Giá trị":[r,t,g,round(churn_prob*100,2),round(loan_prob*100,2)]
+        })
         excel = export_excel(selected, summary, df_scores)
-        st.download_button("📊 Tải báo cáo chi tiết (Excel)", excel, file_name=f"{selected}_PhanTich_AgriAI.xlsx")
-
-    # ========== PHÂN TÍCH NHÓM ==========
-    st.subheader("📈 Phân tích tổng quan nhóm khách hàng")
-    col1, col2 = st.columns(2)
-    with col1:
-        fig, ax = plt.subplots()
-        sns.histplot(df["Điểm Tiềm năng"], color="#AE1C3F", kde=True, ax=ax)
-        ax.set_title("Phân bố Điểm Tiềm năng")
-        st.pyplot(fig)
-
-    with col2:
-        fig2, ax2 = plt.subplots()
-        sns.boxplot(df[["Điểm Rủi ro","Điểm Gắn bó"]], ax=ax2)
-        ax2.set_title("So sánh Rủi ro & Gắn bó")
-        st.pyplot(fig2)
+        st.download_button("📊 Tải báo cáo chi tiết (Excel)", excel, file_name=f"{selected}_AgriAI_Insight.xlsx")
 
 else:
     st.info("⬆️ Hãy tải file Excel khách hàng (sheet KhachHang) để bắt đầu phân tích.")
 
-# ---------- FOOTER ----------
-st.markdown("<div class='footer'>© 2025 Agribank AI | AgriAI CRM Pro 4.1</div>", unsafe_allow_html=True)
+st.markdown("<div class='footer'>© 2025 Agribank AI | AgriAI CRM Pro 4.2 – Predictive Edition</div>", unsafe_allow_html=True)
