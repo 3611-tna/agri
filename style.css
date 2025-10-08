@@ -1,0 +1,225 @@
+/* ==============================================================
+   AGRIANALYZE PRO - STYLE.CSS
+   Author: Agribank IT Department
+   Version: 2025
+   ==============================================================
+*/
+
+/* ========== ROOT COLORS & VARIABLES ========== */
+:root {
+  --agri-burgundy: #AE1C3F;
+  --agri-burgundy-dark: #8d1733;
+  --agri-burgundy-light: #fbe8ec;
+  --gray-50: #fafafa;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --radius: 12px;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --transition: all 0.2s ease-in-out;
+  --font: "Segoe UI", system-ui, sans-serif;
+}
+
+/* ========== GLOBAL RESET ========== */
+body {
+  font-family: var(--font);
+  background: linear-gradient(135deg, #fff, var(--gray-50));
+  color: var(--gray-800);
+  margin: 0;
+  padding: 0;
+}
+
+/* Hide Streamlit default footer & menu */
+#MainMenu, footer, header {visibility: hidden !important;}
+
+/* ========== PAGE CONTAINER ========== */
+.block-container {
+  padding-top: 1.5rem !important;
+  padding-bottom: 3rem !important;
+  max-width: 1300px !important;
+}
+
+/* ========== HEADINGS ========== */
+h1, h2, h3, h4 {
+  color: var(--agri-burgundy);
+  font-weight: 700;
+}
+
+h1 {
+  font-size: 2rem !important;
+}
+
+h2 {
+  font-size: 1.5rem !important;
+}
+
+/* ========== BUTTONS ========== */
+.stButton > button {
+  background: linear-gradient(90deg, var(--agri-burgundy), var(--agri-burgundy-dark));
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.6rem 1.4rem;
+  transition: var(--transition);
+  box-shadow: var(--shadow);
+}
+
+.stButton > button:hover {
+  background: var(--agri-burgundy-dark);
+  transform: translateY(-2px);
+}
+
+div.stDownloadButton > button {
+  background: white !important;
+  color: var(--agri-burgundy) !important;
+  border: 2px solid var(--agri-burgundy);
+  border-radius: var(--radius);
+  font-weight: 600;
+  padding: 0.5rem 1.2rem;
+}
+
+div.stDownloadButton > button:hover {
+  background: var(--agri-burgundy) !important;
+  color: white !important;
+}
+
+/* ========== INPUTS & SELECT BOX ========== */
+input[type="text"], textarea, select, .stTextInput > div > div > input {
+  border: 1.5px solid var(--gray-300) !important;
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem !important;
+  transition: var(--transition);
+  font-size: 0.95rem;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--agri-burgundy) !important;
+  box-shadow: 0 0 0 3px var(--agri-burgundy-light);
+  outline: none;
+}
+
+/* ========== MULTISELECT / RADIO / CHECKBOX ========== */
+.stMultiSelect, .stRadio {
+  background: var(--gray-50);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--gray-200);
+}
+
+.stCheckbox {
+  padding: 0.5rem 0.5rem;
+}
+
+/* ========== TABLE & DATAFRAME ========== */
+[data-testid="stDataFrame"] {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+thead tr th {
+  background: var(--agri-burgundy) !important;
+  color: white !important;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center !important;
+}
+
+tbody tr:nth-child(even) {
+  background: var(--gray-50);
+}
+
+tbody td {
+  font-size: 0.9rem;
+  color: var(--gray-800);
+}
+
+/* ========== EXPANDER ========== */
+.streamlit-expanderHeader {
+  background: var(--agri-burgundy-light);
+  color: var(--agri-burgundy-dark);
+  font-weight: 600;
+  border-radius: var(--radius);
+  border: 1px solid var(--gray-200);
+  padding: 0.6rem 1rem;
+}
+
+.streamlit-expanderHeader:hover {
+  background: var(--agri-burgundy-light);
+}
+
+/* ========== SIDEBAR ========== */
+[data-testid="stSidebar"] {
+  background: #ffffff !important;
+  border-right: 2px solid var(--gray-100);
+  box-shadow: 4px 0 8px rgba(0, 0, 0, 0.05);
+}
+
+[data-testid="stSidebar"] h2 {
+  color: var(--agri-burgundy);
+}
+
+/* ========== METRICS ========== */
+[data-testid="stMetricValue"] {
+  color: var(--agri-burgundy) !important;
+  font-weight: 700 !important;
+}
+
+/* ========== FOOTER CUSTOM ========== */
+footer.custom-footer {
+  margin-top: 3rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, var(--agri-burgundy), var(--agri-burgundy-dark));
+  color: white;
+  border-radius: var(--radius);
+  text-align: center;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow);
+}
+
+footer.custom-footer a {
+  color: #ffe4e4;
+  text-decoration: none;
+}
+
+footer.custom-footer a:hover {
+  text-decoration: underline;
+}
+
+/* ========== ANIMATION ========== */
+@keyframes fadeIn {
+  from {opacity: 0; transform: translateY(10px);}
+  to {opacity: 1; transform: translateY(0);}
+}
+
+.block-container, .stButton > button, div.stDownloadButton > button {
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gray-100);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--agri-burgundy);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--agri-burgundy-dark);
+}
+
+/* ========== MOBILE RESPONSIVE ========== */
+@media (max-width: 768px) {
+  h1 {font-size: 1.5rem !important;}
+  .block-container {padding: 0.5rem !important;}
+  .stButton > button, div.stDownloadButton > button {width: 100%;}
+}
