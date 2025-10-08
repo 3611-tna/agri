@@ -3,15 +3,22 @@ import pandas as pd
 import concurrent.futures
 from io import BytesIO
 from google import genai
-import pkg_resources
 
-# ✅ Optional OpenAI import
+# --- OPENAI Import và version check ---
 try:
     import openai
     from openai import OpenAI
 except ImportError:
     import openai
     OpenAI = None
+
+# --- Version detection an toàn ---
+try:
+    import importlib.metadata as importlib_metadata
+    openai_version = importlib_metadata.version("openai")
+except Exception:
+    import pkg_resources
+    openai_version = pkg_resources.get_distribution("openai").version
 
 # ================== PAGE CONFIG ==================
 st.set_page_config(page_title="🤖 AgriAI CRM Pro", layout="wide", page_icon="🤖")
@@ -21,7 +28,7 @@ with open("style.css", "r", encoding="utf-8") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 st.markdown("<h1 class='title'>🤖 AGRIAI CRM PRO</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Ứng dụng phân tích & tư vấn khách hàng Agribank bằng AI (OpenAI | Gemini | Hybrid)</p><hr>", unsafe_allow_html=True)
+st.markdown("<p class='subtitle'>Phân tích & tư vấn khách hàng Agribank bằng AI (OpenAI | Gemini | Hybrid)</p><hr>", unsafe_allow_html=True)
 
 # ================== CONFIG PANEL =================
 with st.expander("⚙️ Cấu hình AI"):
@@ -49,8 +56,7 @@ def call_gemini(prompt, key, model_name):
 
 def call_openai(prompt, key, model_name, creativity):
     try:
-        version = pkg_resources.get_distribution("openai").version
-        major = int(version.split(".")[0])
+        major = int(openai_version.split(".")[0])
 
         if major >= 1:
             client = OpenAI(api_key=key)
@@ -91,7 +97,10 @@ if uploaded:
     filtered_df = df[df["Họ tên"].str.contains(search_term, case=False, na=False)] if search_term else df
 
     st.markdown("<h4>📋 Danh sách khách hàng</h4>", unsafe_allow_html=True)
-    st.dataframe(filtered_df.style.highlight_max(axis=0, color="#fde8eb"), use_container_width=True)
+    st.dataframe(
+        filtered_df.style.highlight_max(axis=0, color="#fde8eb"),
+        use_container_width=True
+    )
 
     selected = st.selectbox("👥 Chọn khách hàng cần phân tích", filtered_df["Họ tên"].tolist())
 
@@ -107,11 +116,11 @@ if uploaded:
 
         prompt = f"""
         Bạn là chuyên gia Agribank có 15 năm kinh nghiệm.
-        Phân tích khách hàng này dưới 4 góc độ:
-        1️⃣ Năng lực tài chính và hành vi giao dịch.
-        2️⃣ Tâm lý tiêu dùng, lối sống, sở thích.
-        3️⃣ Sản phẩm/dịch vụ nên giới thiệu & chiến lược tiếp cận.
-        4️⃣ Định hướng chăm sóc, giữ chân khách hàng.
+        Hãy phân tích khách hàng này dưới 4 góc độ:
+        1️⃣ Năng lực tài chính & hành vi giao dịch.
+        2️⃣ Tâm lý tiêu dùng, sở thích, độ tuổi, tôn giáo, khu vực.
+        3️⃣ Sản phẩm/dịch vụ nên tiếp cận & chiến lược chăm sóc.
+        4️⃣ Định hướng duy trì và gia tăng quan hệ lâu dài.
         Dữ liệu khách hàng: {cust_data}
         """
 
@@ -135,7 +144,7 @@ if uploaded:
         excel_data = export_excel(selected, summary)
         st.download_button("📊 Tải kết quả (Excel)", excel_data, file_name=f"{selected}_phan_tich.xlsx")
 
-    # ============ CHAT BỔ SUNG ==============
+    # ====== CHAT BỔ SUNG ======
     st.markdown("<h3>💬 Trợ lý AI - Bổ sung dữ liệu hoặc hỏi thêm</h3>", unsafe_allow_html=True)
     for msg in st.session_state["memory"][selected]["chat"]:
         role = msg["role"]
@@ -150,16 +159,24 @@ if uploaded:
 
         prompt = f"""
         Dữ liệu khách hàng: {cust_data}
-        Câu hỏi hoặc thông tin bổ sung: "{user_input}".
-        Trả lời ngắn gọn, rõ ràng, chỉ hỏi thêm khi thiếu dữ liệu thực sự cần thiết.
+        Nhân viên Agribank vừa nói: "{user_input}".
+        Các thông tin còn thiếu: {missing}.
+        Hãy phản hồi phù hợp, chỉ hỏi thêm khi thật sự cần thiết.
         """
         response = call_openai(prompt, openai_key, openai_model, creativity)
         st.session_state["memory"][selected]["chat"].append({"role": "assistant", "content": response})
 
-        # 🔁 Hỗ trợ cả Streamlit mới và cũ
         try:
             st.rerun()
         except AttributeError:
             st.experimental_rerun()
 else:
     st.info("⬆️ Vui lòng tải file Excel khách hàng trước khi bắt đầu.")
+
+# ========== FOOTER ==========
+st.markdown("""
+<div class='footer'>
+    © 2025 <span>Agribank AI Division</span> | <b>AgriAI CRM Pro v2.7.3</b><br>
+    <i>Ứng dụng hỗ trợ cán bộ Agribank trong công tác phân tích & tư vấn khách hàng.</i>
+</div>
+""", unsafe_allow_html=True)
